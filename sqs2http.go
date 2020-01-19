@@ -17,19 +17,25 @@ func main() {
 	reg := flag.String("region", "", "aws region (i.e. us-east-1)")
 	url := flag.String("url", "", "the sqs queue url")
 	ep := flag.String("endpoint", "", "the aws endpoint")
-	ret := flag.Int("retries", -1, "the max number of retries (defaults to -1)")
-	to := flag.Int("timeout", 30, "the message visibility timeout in seconds (defaults to 30 seconds)")
-	wts := flag.Int("wait", 0, "wait time in seconds (defaults to 0)")
+	ret := flag.Int("retries", -1, "the max number of retries")
+	to := flag.Int("timeout", 30, "the message visibility timeout in seconds")
+	wts := flag.Int("wait", 0, "wait time in seconds")
 	st := flag.String("send-to", "", "the url to send the message to")
 	mth := flag.String("method", "GET", "the request method to send the message with")
 	sta := flag.Int("status", 200, "the successful status code")
-	max := flag.Int("workers", 1, "the number of concurrent workers (defaults to 1)")
+	max := flag.Int("workers", 1, "the number of concurrent workers")
 	vrb := flag.Bool("verbose", false, "verbose output")
 
 	flag.Parse()
 
 	if *vrb {
 		logger.SetLevel(logger.DEBUG)
+	}
+
+	if *max < 1 {
+		err := errors.New("need at least 1 worker")
+
+		panic(err)
 	}
 
 	sqs, err := sqsc.New(&sqsc.Config{
