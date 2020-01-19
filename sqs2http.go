@@ -109,8 +109,6 @@ func main() {
 
 				if err != nil {
 					fail("http response close failure", err)
-
-					continue
 				}
 
 				if *sta != res.StatusCode {
