@@ -4,8 +4,8 @@ forward messages from sqs to http endpoints
 ---
 ## usage
 
-```bash
-sqs2http --help
+```
+./sqs2http --help
 Usage of ./sqs2http:
   -endpoint string
     	the aws endpoint
@@ -16,7 +16,7 @@ Usage of ./sqs2http:
   -region string
     	aws region (i.e. us-east-1)
   -retries int
-    	the max number of retries (defaults to -1) (default -1)
+    	the max number of retries (default -1)
   -secret string
     	aws account secret (leave blank for no-auth)
   -send-to string
@@ -24,7 +24,7 @@ Usage of ./sqs2http:
   -status int
     	the successful status code (default 200)
   -timeout int
-    	the message visibility timeout in seconds (defaults to 30 seconds) (default 30)
+    	the message visibility timeout in seconds (default 30)
   -token string
     	aws account token (leave blank for no-auth)
   -url string
@@ -32,7 +32,7 @@ Usage of ./sqs2http:
   -verbose
     	verbose output
   -wait int
-    	wait time in seconds (defaults to 0)
+    	wait time in seconds
   -workers int
-    	the number of concurrent workers (defaults to 1) (default 1)
+    	the number of concurrent workers (default 1)
 ```
