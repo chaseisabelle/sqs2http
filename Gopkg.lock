@@ -46,6 +46,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:5a534fc8c2a7365dd52bb03d4d67a0ff4358f8c1d571f9f12f7c5156c41ce8e4"
+  name = "github.com/chaseisabelle/flagz"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "92a4fefa0166162cfc3f06fc28e60cc9f6f7d3f5"
+
+[[projects]]
+  branch = "master"
   digest = "1:b16274387ebed737f9539d7849fabf7125ad65f3bb7c364fb6861a2eddd9abd2"
   name = "github.com/chaseisabelle/sqsc"
   packages = ["."]
@@ -71,6 +79,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/chaseisabelle/flagz",
     "github.com/chaseisabelle/sqsc",
     "github.com/g3n/engine/util/logger",
   ]

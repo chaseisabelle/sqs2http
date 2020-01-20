@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"flag"
-	"fmt"
+	"github.com/chaseisabelle/flagz"
 	"github.com/chaseisabelle/sqsc"
 	"github.com/g3n/engine/util/logger"
 	"net/http"
+	"strconv"
 )
 
 func main() {
@@ -22,14 +23,29 @@ func main() {
 	wts := flag.Int("wait", 0, "wait time in seconds")
 	st := flag.String("send-to", "", "the url to send the message to")
 	mth := flag.String("method", "GET", "the request method to send the message with")
-	sta := flag.Int("status", 200, "the successful status code")
 	max := flag.Int("workers", 1, "the number of concurrent workers")
 	vrb := flag.Bool("verbose", false, "verbose output")
+
+	var flg flagz.Flagz
+
+	flag.Var(&flg, "requeue", "the http status code to requeue a message for")
 
 	flag.Parse()
 
 	if *vrb {
 		logger.SetLevel(logger.DEBUG)
+	}
+
+	rqs := make([]int, len(flg))
+
+	for ind, str := range flg {
+		tmp, err := strconv.Atoi(str)
+
+		if err != nil {
+			panic(err)
+		}
+
+		rqs[ind] = tmp
 	}
 
 	if *max < 1 {
@@ -95,7 +111,7 @@ func main() {
 					continue
 				}
 
-				bdy := make([]byte, 0)
+				var bdy []byte
 
 				_, err = res.Body.Read(bdy)
 
@@ -111,11 +127,11 @@ func main() {
 					fail("http response close failure", err)
 				}
 
-				if *sta != res.StatusCode {
-					err = errors.New(fmt.Sprintf("expected %+v, received %+v", *sta, res.StatusCode))
+				sc := res.StatusCode
 
-					fail("http response status failure", err)
+				debug("received http status code", sc)
 
+				if has(sc, rqs) {
 					continue
 				}
 
@@ -123,8 +139,6 @@ func main() {
 
 				if err != nil {
 					fail("sqs delete failure", err)
-
-					continue
 				}
 
 				debug("sqs delete response", rsp)
@@ -145,4 +159,14 @@ func fail(msg string, etc interface{}) {
 
 func debug(msg string, etc interface{}) {
 	logger.Debug("[DBG] " + msg + ": %+v", etc)
+}
+
+func has(num int, arr []int) bool {
+	for _, val := range arr {
+		if num == val {
+			return true
+		}
+	}
+
+	return false
 }
