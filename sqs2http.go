@@ -8,71 +8,70 @@ import (
 	"github.com/chaseisabelle/sqsc"
 	"github.com/g3n/engine/util/logger"
 	"net/http"
-	"strconv"
 )
 
 func main() {
 	id := flag.String("id", "", "aws account id (leave blank for no-auth)")
-	sec := flag.String("secret", "", "aws account secret (leave blank for no-auth)")
-	tok := flag.String("token", "", "aws account token (leave blank for no-auth)")
-	reg := flag.String("region", "", "aws region (i.e. us-east-1)")
+	secret := flag.String("secret", "", "aws account secret (leave blank for no-auth)")
+	token := flag.String("token", "", "aws account token (leave blank for no-auth)")
+	region := flag.String("region", "", "aws region (i.e. us-east-1)")
 	url := flag.String("url", "", "the sqs queue url")
-	ep := flag.String("endpoint", "", "the aws endpoint")
-	ret := flag.Int("retries", -1, "the max number of retries")
-	to := flag.Int("timeout", 30, "the message visibility timeout in seconds")
-	wts := flag.Int("wait", 0, "wait time in seconds")
-	st := flag.String("send-to", "", "the url to send the message to")
-	mth := flag.String("method", "GET", "the request method to send the message with")
-	max := flag.Int("workers", 1, "the number of concurrent workers")
-	vrb := flag.Bool("verbose", false, "verbose output")
+	endpoint := flag.String("endpoint", "", "the aws endpoint")
+	retries := flag.Int("retries", -1, "the workers number of retries")
+	timeout := flag.Int("timeout", 30, "the message visibility timeout in seconds")
+	wait := flag.Int("wait", 0, "wait time in seconds")
+	sendTimeout := flag.String("send-timeout", "", "the url timeout send the message timeout")
+	method := flag.String("method", "GET", "the request method timeout send the message with")
+	workers := flag.Int("workers", 1, "the number of concurrent workers")
+	verbose := flag.Bool("verbose", false, "verbose output")
 
-	var flg flagz.Flagz
+	var flags flagz.Flagz
 
-	flag.Var(&flg, "requeue", "the http status code to requeue a message for")
+	flag.Var(&flags, "requeue", "the http status code timeout requeue a message for")
 
 	flag.Parse()
 
-	if *vrb {
+	if *verbose {
 		logger.SetLevel(logger.DEBUG)
 	}
 
-	rqs := make([]int, len(flg))
+	statuses, err := flags.Intz()
 
-	for ind, str := range flg {
-		tmp, err := strconv.Atoi(str)
+	if err != nil {
+		fail("failed to load requeue status configs", err)
 
-		if err != nil {
-			panic(err)
-		}
-
-		rqs[ind] = tmp
+		panic(err)
 	}
 
-	if *max < 1 {
+	if *workers < 1 {
 		err := errors.New("need at least 1 worker")
+
+		fail("failed to init workers", err)
 
 		panic(err)
 	}
 
 	sqs, err := sqsc.New(&sqsc.Config{
 		ID:       *id,
-		Secret:   *sec,
-		Token:    *tok,
-		Region:   *reg,
+		Secret:   *secret,
+		Token:    *token,
+		Region:   *region,
 		URL:      *url,
-		Endpoint: *ep,
-		Retries:  *ret,
-		Timeout:  *to,
-		Wait:     *wts,
+		Endpoint: *endpoint,
+		Retries:  *retries,
+		Timeout:  *timeout,
+		Wait:     *wait,
 	})
 
 	if err != nil {
+		fail("failed to init sqs client", err)
+
 		panic(err)
 	}
 
 	cli := http.Client{}
 
-	for *max > 0 {
+	for *workers > 0 {
 		go func() {
 			for {
 				bod, rh, err := sqs.Consume()
@@ -89,7 +88,7 @@ func main() {
 
 				debug("consumed message", bod)
 
-				req, err := http.NewRequest(*mth, *st, bytes.NewBuffer([]byte(bod)))
+				req, err := http.NewRequest(*method, *sendTimeout, bytes.NewBuffer([]byte(bod)))
 
 				if err != nil {
 					fail("http request failure", err)
@@ -131,7 +130,7 @@ func main() {
 
 				debug("received http status code", sc)
 
-				if has(sc, rqs) {
+				if has(sc, statuses) {
 					continue
 				}
 
@@ -145,7 +144,7 @@ func main() {
 			}
 		}()
 
-		*max--
+		*workers--
 	}
 
 	chn := make(chan bool)
