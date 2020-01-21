@@ -20,7 +20,7 @@ func main() {
 	retries := flag.Int("retries", -1, "the workers number of retries")
 	timeout := flag.Int("timeout", 30, "the message visibility timeout in seconds")
 	wait := flag.Int("wait", 0, "wait time in seconds")
-	sendTimeout := flag.String("send-timeout", "", "the url timeout send the message timeout")
+	to := flag.String("send-to", "", "the url to forward the messages to")
 	method := flag.String("method", "GET", "the request method timeout send the message with")
 	workers := flag.Int("workers", 1, "the number of concurrent workers")
 	verbose := flag.Bool("verbose", false, "verbose output")
@@ -88,7 +88,7 @@ func main() {
 
 				debug("consumed message", bod)
 
-				req, err := http.NewRequest(*method, *sendTimeout, bytes.NewBuffer([]byte(bod)))
+				req, err := http.NewRequest(*method, *to, bytes.NewBuffer([]byte(bod)))
 
 				if err != nil {
 					fail("http request failure", err)
