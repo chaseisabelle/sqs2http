@@ -46,11 +46,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5a534fc8c2a7365dd52bb03d4d67a0ff4358f8c1d571f9f12f7c5156c41ce8e4"
+  digest = "1:4f5214b06ab6f549a0a618c716fe9e60d76f5ed291c99193febcd648c2c5b612"
   name = "github.com/chaseisabelle/flagz"
   packages = ["."]
   pruneopts = "UT"
-  revision = "92a4fefa0166162cfc3f06fc28e60cc9f6f7d3f5"
+  revision = "77781fefaf4c51b29c5fc1b18fbd2fa035957d75"
 
 [[projects]]
   branch = "master"
