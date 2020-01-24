@@ -11,22 +11,24 @@ Usage of ./sqs2http:
     	the aws endpoint
   -id string
     	aws account id (leave blank for no-auth)
+  -key string
+    	aws account key (leave blank for no-auth)
   -method string
-    	the request method to send the message with (default "GET")
+    	the request method timeout send the message with (default "GET")
+  -queue string
+    	the queue name
   -region string
     	aws region (i.e. us-east-1)
+  -requeue value
+    	the http status code timeout requeue a message for
   -retries int
-    	the max number of retries (default -1)
+    	the workers number of retries (default -1)
   -secret string
     	aws account secret (leave blank for no-auth)
   -send-to string
-    	the url to send the message to
-  -status int
-    	the successful status code (default 200)
+    	the url to forward the messages to
   -timeout int
     	the message visibility timeout in seconds (default 30)
-  -token string
-    	aws account token (leave blank for no-auth)
   -url string
     	the sqs queue url
   -verbose
