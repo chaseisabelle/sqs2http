@@ -54,11 +54,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:b16274387ebed737f9539d7849fabf7125ad65f3bb7c364fb6861a2eddd9abd2"
+  digest = "1:861fd88ecc15faaedc5086915e5b9770bbf87a5462a2ba3915b833caf868f5c5"
   name = "github.com/chaseisabelle/sqsc"
   packages = ["."]
   pruneopts = "UT"
-  revision = "244ee0c694bac11b4746d6225fe9c7916b4d49ff"
+  revision = "9d7548426f51d85e1852be2a1a7243a392347ff4"
 
 [[projects]]
   digest = "1:d3b1b84f61b07ae0fed98c067ea7b5dd91c09af4e45ada3e1d6a2dca352a8c95"

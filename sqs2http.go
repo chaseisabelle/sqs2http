@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"fmt"
 	"github.com/chaseisabelle/flagz"
 	"github.com/chaseisabelle/sqsc"
 	"github.com/g3n/engine/util/logger"
@@ -12,10 +13,11 @@ import (
 
 func main() {
 	id := flag.String("id", "", "aws account id (leave blank for no-auth)")
+	key := flag.String("key", "", "aws account key (leave blank for no-auth)")
 	secret := flag.String("secret", "", "aws account secret (leave blank for no-auth)")
-	token := flag.String("token", "", "aws account token (leave blank for no-auth)")
 	region := flag.String("region", "", "aws region (i.e. us-east-1)")
 	url := flag.String("url", "", "the sqs queue url")
+	queue := flag.String("queue", "", "the queue name")
 	endpoint := flag.String("endpoint", "", "the aws endpoint")
 	retries := flag.Int("retries", -1, "the workers number of retries")
 	timeout := flag.Int("timeout", 30, "the message visibility timeout in seconds")
@@ -35,27 +37,42 @@ func main() {
 		logger.SetLevel(logger.DEBUG)
 	}
 
+	var err error
+
+	if *region == "" {
+		err = errors.New("no region provided")
+	}
+
+	if *to == "" {
+		err = errors.New("no send-to url provided")
+	}
+
+	if *url == "" && *queue == "" {
+		err = errors.New("no queue url or name provided")
+	}
+
+	if err != nil {
+		die("config failure", err)
+	}
+
 	statuses, err := flags.Intz()
 
 	if err != nil {
-		fail("failed to load requeue status configs", err)
-
-		panic(err)
+		die("failed to load requeue status configs", err)
 	}
 
 	if *workers < 1 {
 		err := errors.New("need at least 1 worker")
 
-		fail("failed to init workers", err)
-
-		panic(err)
+		die("failed to init workers", err)
 	}
 
 	sqs, err := sqsc.New(&sqsc.Config{
 		ID:       *id,
 		Secret:   *secret,
-		Token:    *token,
+		Key:      *key,
 		Region:   *region,
+		Queue:    *queue,
 		URL:      *url,
 		Endpoint: *endpoint,
 		Retries:  *retries,
@@ -64,9 +81,7 @@ func main() {
 	})
 
 	if err != nil {
-		fail("failed to init sqs client", err)
-
-		panic(err)
+		die("failed to init sqs client", err)
 	}
 
 	cli := http.Client{}
@@ -152,12 +167,16 @@ func main() {
 	<-chn
 }
 
+func die(msg string, etc interface{}) {
+	panic(fmt.Sprintf("[DIE] "+msg+": %+v", etc))
+}
+
 func fail(msg string, etc interface{}) {
-	logger.Error("[ERR] " + msg + ": %+v", etc)
+	logger.Error("[ERR] "+msg+": %+v", etc)
 }
 
 func debug(msg string, etc interface{}) {
-	logger.Debug("[DBG] " + msg + ": %+v", etc)
+	logger.Debug("[DBG] "+msg+": %+v", etc)
 }
 
 func has(num int, arr []int) bool {

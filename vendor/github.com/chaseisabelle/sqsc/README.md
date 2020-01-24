@@ -45,6 +45,8 @@ bod, rh, err := cli.Consume()
 - rh - the receipt handle (use for deleting message)
 - err - any error
 
+note: if `bod == "" && rh == "" && err == nil` then the queue is empty, or no messages are visible
+
 #### delete a message
 ```go
 res, err = cli.Delete(rh)

@@ -1,22 +1,26 @@
 package sqsc
 
 import (
+	"errors"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sqs"
 )
 
+// the client
 type SQSC struct {
 	sqs    *sqs.SQS
 	config Config
 }
 
+// the client configs
 type Config struct {
 	ID       string //<< aws account id
+	Key    string //<< aws auth key
 	Secret   string //<< aws account secret
-	Token    string //<< aws auth token
 	Region   string //<< aws region
+	Queue    string //<< queue name
 	URL      string //<< queue url
 	Endpoint string //<< aws endpoint
 	Retries  int    //<< max retries
@@ -30,21 +34,45 @@ func New(cfg *Config) (*SQSC, error) {
 	crd := credentials.AnonymousCredentials
 
 	// check if we do need to auth
-	if cfg.ID != "" && cfg.Secret != "" && cfg.Token != "" {
-		crd = credentials.NewStaticCredentials(cfg.ID, cfg.Secret, cfg.Token)
+	if cfg.Key != "" && cfg.Secret != "" {
+		crd = credentials.NewStaticCredentials(cfg.Key, cfg.Secret, "")
 	}
 
-	// boot the session
-	ses, err := session.NewSession(&aws.Config{
+	// build the aws configs
+	acf := aws.Config{
 		Region:      aws.String(cfg.Region),
 		Credentials: crd,
 		MaxRetries:  aws.Int(cfg.Retries),
 		Endpoint:    &cfg.Endpoint,
-	})
+	}
+
+	// boot the session
+	ses, err := session.NewSession(&acf)
+
+	// build the aws sqs client
+	cli := sqs.New(ses, &acf)
+
+	// get the queue url
+	if cfg.URL == "" {
+		url, err := cli.GetQueueUrl(&sqs.GetQueueUrlInput{
+			QueueName:              aws.String(cfg.Queue),
+			QueueOwnerAWSAccountId: aws.String(cfg.ID),
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		if url == nil {
+			return nil, errors.New("failed to get queue url")
+		}
+
+		cfg.URL = *url.QueueUrl
+	}
 
 	// build the struct
 	return &SQSC{
-		sqs:    sqs.New(ses),
+		sqs:    cli,
 		config: *cfg,
 	}, err
 }
