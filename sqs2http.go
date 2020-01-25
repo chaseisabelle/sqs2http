@@ -37,6 +37,9 @@ func main() {
 		logger.SetLevel(logger.DEBUG)
 	}
 
+	debug("key", *key)
+	debug("secret", *secret)
+
 	var err error
 
 	if *region == "" {
