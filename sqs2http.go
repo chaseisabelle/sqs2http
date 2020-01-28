@@ -9,7 +9,26 @@ import (
 	"github.com/chaseisabelle/sqsc"
 	"github.com/g3n/engine/util/logger"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
 )
+
+type Stopper struct {
+	sync.Mutex
+	stop bool
+}
+
+var stopper Stopper
+var listener chan struct{}
+
+func init() {
+	stopper = Stopper{
+		stop: false,
+	}
+
+	listener = make(chan struct{})
+}
 
 func main() {
 	id := flag.String("id", "", "aws account id (leave blank for no-auth)")
@@ -85,10 +104,23 @@ func main() {
 	}
 
 	cli := http.Client{}
+	tmp := *workers
 
-	for *workers > 0 {
+	for tmp > 0 {
 		go func() {
 			for {
+				stopper.Lock()
+
+				if stopper.stop {
+					stopper.Unlock()
+
+					debug("graceful exit", "worker")
+
+					break
+				}
+
+				stopper.Unlock()
+
 				bod, rh, err := sqs.Consume()
 
 				if err != nil {
@@ -146,6 +178,8 @@ func main() {
 				debug("received http status code", sc)
 
 				if has(sc, statuses) {
+					info("requeue due to http response code", sc)
+
 					continue
 				}
 
@@ -157,14 +191,40 @@ func main() {
 
 				debug("sqs delete response", rsp)
 			}
+
+			listener <- struct{}{}
 		}()
 
-		*workers--
+		tmp--
 	}
 
-	chn := make(chan bool)
+	sigs := make(chan os.Signal, 1)
 
-	<-chn
+	signal.Notify(sigs, os.Interrupt)
+
+	go func() {
+		sig := <-sigs
+
+		info("received signal", sig)
+
+		stopper.Lock()
+
+		defer stopper.Unlock()
+
+		stopper.stop = true
+	}()
+
+	tmp = 0
+
+	for range listener {
+		tmp++
+
+		if tmp >= *workers {
+			break
+		}
+	}
+
+	info("graceful exit", "bye bye")
 }
 
 func die(msg string, etc interface{}) {
@@ -177,6 +237,10 @@ func fail(msg string, etc interface{}) {
 
 func debug(msg string, etc interface{}) {
 	logger.Debug("[DBG] "+msg+": %+v", etc)
+}
+
+func info(msg string, etc interface{}) {
+	logger.Info("[INF] "+msg+": %+v", etc)
 }
 
 func has(num int, arr []int) bool {
