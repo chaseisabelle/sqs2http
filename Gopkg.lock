@@ -61,6 +61,14 @@
   revision = "9d7548426f51d85e1852be2a1a7243a392347ff4"
 
 [[projects]]
+  branch = "master"
+  digest = "1:dcbf56e35ea2b740bae417cf28877c8cfa3be257e129e1fafd6975d5355f04d4"
+  name = "github.com/chaseisabelle/stop"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "d6f2d969724577d50156ed35482da9bc45d4e562"
+
+[[projects]]
   digest = "1:d3b1b84f61b07ae0fed98c067ea7b5dd91c09af4e45ada3e1d6a2dca352a8c95"
   name = "github.com/g3n/engine"
   packages = ["util/logger"]
@@ -81,6 +89,7 @@
   input-imports = [
     "github.com/chaseisabelle/flagz",
     "github.com/chaseisabelle/sqsc",
+    "github.com/chaseisabelle/stop",
     "github.com/g3n/engine/util/logger",
   ]
   solver-name = "gps-cdcl"

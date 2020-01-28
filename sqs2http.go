@@ -7,26 +7,14 @@ import (
 	"fmt"
 	"github.com/chaseisabelle/flagz"
 	"github.com/chaseisabelle/sqsc"
+	"github.com/chaseisabelle/stop"
 	"github.com/g3n/engine/util/logger"
 	"net/http"
-	"os"
-	"os/signal"
-	"sync"
 )
 
-type Stopper struct {
-	sync.Mutex
-	stop bool
-}
-
-var stopper Stopper
 var listener chan struct{}
 
 func init() {
-	stopper = Stopper{
-		stop: false,
-	}
-
 	listener = make(chan struct{})
 }
 
@@ -106,20 +94,16 @@ func main() {
 	cli := http.Client{}
 	tmp := *workers
 
+	stop.Listen()
+
 	for tmp > 0 {
 		go func() {
 			for {
-				stopper.Lock()
-
-				if stopper.stop {
-					stopper.Unlock()
-
+				if stop.Interrupted() {
 					debug("graceful exit", "worker")
 
 					break
 				}
-
-				stopper.Unlock()
 
 				bod, rh, err := sqs.Consume()
 
@@ -197,22 +181,6 @@ func main() {
 
 		tmp--
 	}
-
-	sigs := make(chan os.Signal, 1)
-
-	signal.Notify(sigs, os.Interrupt)
-
-	go func() {
-		sig := <-sigs
-
-		info("received signal", sig)
-
-		stopper.Lock()
-
-		defer stopper.Unlock()
-
-		stopper.stop = true
-	}()
 
 	tmp = 0
 
