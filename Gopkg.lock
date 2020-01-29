@@ -62,11 +62,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:dcbf56e35ea2b740bae417cf28877c8cfa3be257e129e1fafd6975d5355f04d4"
+  digest = "1:59b757e62a5e58536703cc258021eacd2a1c35fa24b2fae5f4104abdf552234b"
   name = "github.com/chaseisabelle/stop"
   packages = ["."]
   pruneopts = "UT"
-  revision = "d6f2d969724577d50156ed35482da9bc45d4e562"
+  revision = "e4c81c93d9e353df31308d9efd68dd8d77abf899"
 
 [[projects]]
   digest = "1:d3b1b84f61b07ae0fed98c067ea7b5dd91c09af4e45ada3e1d6a2dca352a8c95"

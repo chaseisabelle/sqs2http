@@ -99,7 +99,7 @@ func main() {
 	for tmp > 0 {
 		go func() {
 			for {
-				if stop.Interrupted() {
+				if stop.Stopped() {
 					debug("graceful exit", "worker")
 
 					break

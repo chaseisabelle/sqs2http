@@ -4,35 +4,74 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 )
 
-type state struct {
+var state struct {
 	sync.Mutex
 	interrupted bool
+	killed bool
+	terminated bool
 }
 
-var s state
-
 func Listen() {
+	state = struct {
+		sync.Mutex
+		interrupted bool
+		killed bool
+		terminated bool
+	}{}
+
 	c := make(chan os.Signal)
 
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
 
 	go func() {
-		<-c
+		s := <-c
 
-		s.Lock()
+		state.Lock()
 
-		defer s.Unlock()
+		defer state.Unlock()
 
-		s.interrupted = true
+		switch s {
+		case syscall.SIGINT:
+			state.interrupted = true
+		case syscall.SIGKILL:
+			state.killed = true
+		case syscall.SIGTERM:
+			state.terminated = true
+		}
 	}()
 }
 
 func Interrupted() bool {
-	s.Lock()
+	state.Lock()
 
-	defer s.Unlock()
+	defer state.Unlock()
 
-	return s.interrupted
+	return state.interrupted
+}
+
+func Killed() bool {
+	state.Lock()
+
+	defer state.Unlock()
+
+	return state.killed
+}
+
+func Terminated() bool {
+	state.Lock()
+
+	defer state.Unlock()
+
+	return state.terminated
+}
+
+func Stopped() bool {
+	state.Lock()
+
+	defer state.Unlock()
+
+	return state.interrupted || state.terminated || state.killed
 }
