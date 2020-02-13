@@ -141,22 +141,6 @@ func main() {
 					continue
 				}
 
-				var bdy []byte
-
-				_, err = res.Body.Read(bdy)
-
-				if err != nil {
-					fail("http response read failure", err)
-				}
-
-				debug("http response read", string(bdy))
-
-				err = res.Body.Close()
-
-				if err != nil {
-					fail("http response close failure", err)
-				}
-
 				sc := res.StatusCode
 
 				debug("received http status code", sc)
