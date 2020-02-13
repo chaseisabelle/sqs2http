@@ -151,13 +151,11 @@ func main() {
 					continue
 				}
 
-				rsp, err := sqs.Delete(rh)
+				_, err = sqs.Delete(rh)
 
 				if err != nil {
 					fail("sqs delete failure", err)
 				}
-
-				debug("sqs delete response", rsp)
 			}
 
 			listener <- struct{}{}
