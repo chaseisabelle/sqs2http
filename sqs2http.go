@@ -122,7 +122,7 @@ func main() {
 				if bod == "" && rh == "" {
 					empties++
 
-					if empties >= uint64(*boAfter) {
+					if *boAfter != 0 && empties >= uint64(*boAfter) {
 						dur := time.Duration(bo) * time.Second
 
 						debug("sleeping", dur)
