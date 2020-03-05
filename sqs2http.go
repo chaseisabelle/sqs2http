@@ -10,6 +10,7 @@ import (
 	"github.com/chaseisabelle/stop"
 	"github.com/g3n/engine/util/logger"
 	"net/http"
+	"time"
 )
 
 var listener chan struct{}
@@ -33,6 +34,8 @@ func main() {
 	method := flag.String("method", "GET", "the request method timeout send the message with")
 	workers := flag.Int("workers", 1, "the number of concurrent workers")
 	verbose := flag.Bool("verbose", false, "verbose output")
+	boAfter := flag.Int("backoff-after", 1, "backoff after this many empty responses (0 for no backoff)")
+	boMax := flag.Int("backoff-max", 10, "max sleep time for the exponential backoff")
 
 	var flags flagz.Flagz
 
@@ -98,6 +101,9 @@ func main() {
 
 	for tmp > 0 {
 		go func() {
+			empties := uint64(0)
+			bo := 1
+
 			for {
 				if stop.Stopped() {
 					debug("graceful exit", "worker")
@@ -114,8 +120,27 @@ func main() {
 				}
 
 				if bod == "" && rh == "" {
+					empties++
+
+					if empties >= uint64(*boAfter) {
+						dur := time.Duration(bo) * time.Second
+
+						debug("sleeping", dur)
+
+						time.Sleep(dur)
+
+						bo += bo
+
+						if bo > *boMax {
+							bo = *boMax
+						}
+					}
+
 					continue
 				}
+
+				empties = 0
+				bo = 1
 
 				debug("consumed message", bod)
 
