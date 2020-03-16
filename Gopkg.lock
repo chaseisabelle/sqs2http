@@ -46,6 +46,17 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:675ef719fe7c12ce4f695b251737ac9d295444277e1d2e8c3a852c4c0590ac2c"
+  name = "github.com/chaseisabelle/backoff"
+  packages = [
+    ".",
+    "expbo",
+  ]
+  pruneopts = "UT"
+  revision = "6277c1ede78bfae9aadb74ec3cfa6650cfda56f0"
+
+[[projects]]
+  branch = "master"
   digest = "1:4f5214b06ab6f549a0a618c716fe9e60d76f5ed291c99193febcd648c2c5b612"
   name = "github.com/chaseisabelle/flagz"
   packages = ["."]
@@ -87,6 +98,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/chaseisabelle/backoff/expbo",
     "github.com/chaseisabelle/flagz",
     "github.com/chaseisabelle/sqsc",
     "github.com/chaseisabelle/stop",

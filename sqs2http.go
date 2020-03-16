@@ -5,12 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/chaseisabelle/backoff/expbo"
 	"github.com/chaseisabelle/flagz"
 	"github.com/chaseisabelle/sqsc"
 	"github.com/chaseisabelle/stop"
 	"github.com/g3n/engine/util/logger"
 	"net/http"
-	"time"
 )
 
 var listener chan struct{}
@@ -102,7 +102,11 @@ func main() {
 	for tmp > 0 {
 		go func() {
 			empties := uint64(0)
-			bo := 1
+			bo, err := expbo.New(uint64(1000), uint64(*boMax) * 1000, 2)
+
+			if err != nil {
+				die("failed to init backoff", err)
+			}
 
 			for {
 				if stop.Stopped() {
@@ -123,24 +127,17 @@ func main() {
 					empties++
 
 					if *boAfter != 0 && empties >= uint64(*boAfter) {
-						dur := time.Duration(bo) * time.Second
+						debug("sleeping", nil)
 
-						debug("sleeping", dur)
-
-						time.Sleep(dur)
-
-						bo += bo
-
-						if bo > *boMax {
-							bo = *boMax
-						}
+						bo.Backoff()
 					}
 
 					continue
 				}
 
 				empties = 0
-				bo = 1
+
+				bo.Reset()
 
 				debug("consumed message", bod)
 
