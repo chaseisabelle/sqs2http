@@ -13,13 +13,17 @@ import (
 	"net/http"
 )
 
+// listening for workers to shutdown
 var listener chan struct{}
 
+// func is called before main()
 func init() {
 	listener = make(chan struct{})
 }
 
+// main process
 func main() {
+	// init the configs for everything
 	id := flag.String("id", "", "aws account id (leave blank for no-auth)")
 	key := flag.String("key", "", "aws account key (leave blank for no-auth)")
 	secret := flag.String("secret", "", "aws account secret (leave blank for no-auth)")
@@ -77,6 +81,7 @@ func main() {
 		die("failed to init workers", err)
 	}
 
+	// init the sqs client to connect to the queue
 	sqs, err := sqsc.New(&sqsc.Config{
 		ID:       *id,
 		Secret:   *secret,
@@ -94,27 +99,34 @@ func main() {
 		die("failed to init sqs client", err)
 	}
 
+	// init http client to connect to the web server
 	cli := http.Client{}
 	tmp := *workers
 
+	// listen for kill/term/stop signals from user/os
 	stop.Listen()
 
+	// create the workers
 	for tmp > 0 {
+		// spawn a goroutine for each worker
 		go func() {
-			empties := uint64(0)
-			bo, err := expbo.New(uint64(1000), uint64(*boMax) * 1000, 2)
+			empties := uint64(0) //<< keeps track of number of subsequent empty replies from queue
+			bo, err := expbo.New(uint64(1000), uint64(*boMax) * 1000, 2) //<< exponential backoff
 
 			if err != nil {
 				die("failed to init backoff", err)
 			}
 
+			// create forever loop to constantly listen/ping for messages from the queue
 			for {
+				// check if user/os has stopped the program and exit gracefully
 				if stop.Stopped() {
 					debug("graceful exit", "worker")
 
 					break
 				}
 
+				// attempt to consume a message from the queue
 				bod, rh, err := sqs.Consume()
 
 				if err != nil {
@@ -123,24 +135,30 @@ func main() {
 					continue
 				}
 
+				// if theres no body and no receipt handle then the queue is empty
 				if bod == "" && rh == "" {
-					empties++
+					empties++ //<< track number of empty replies
 
+					// back off if necessary
 					if *boAfter != 0 && empties >= uint64(*boAfter) {
-						debug("sleeping", nil)
+						debug("sleeping", bo)
 
 						bo.Backoff()
 					}
 
+					// skip to next iteration
 					continue
 				}
 
+				// reset number of empty replies
 				empties = 0
 
+				// reset the exponential backoff
 				bo.Reset()
 
 				debug("consumed message", bod)
 
+				// create new http request
 				req, err := http.NewRequest(*method, *to, bytes.NewBuffer([]byte(bod)))
 
 				if err != nil {
@@ -149,6 +167,7 @@ func main() {
 					continue
 				}
 
+				// execute http request
 				res, err := cli.Do(req)
 
 				if err != nil {
@@ -157,6 +176,7 @@ func main() {
 					continue
 				}
 
+				// check the http response
 				if res == nil {
 					fail("http response failure", errors.New("received nil response"))
 
@@ -167,12 +187,14 @@ func main() {
 
 				debug("received http status code", sc)
 
+				// if the http code is in the requeue codes the requeue the message
 				if has(sc, statuses) {
 					info("requeue due to http response code", sc)
 
 					continue
 				}
 
+				// elsewise delete the message from the queue
 				_, err = sqs.Delete(rh)
 
 				if err != nil {
@@ -180,6 +202,7 @@ func main() {
 				}
 			}
 
+			// if we have broken out of the forever loop then we need to exit gracefully
 			listener <- struct{}{}
 		}()
 
@@ -188,6 +211,7 @@ func main() {
 
 	tmp = 0
 
+	// listen for workers to exit gracefully
 	for range listener {
 		tmp++
 
