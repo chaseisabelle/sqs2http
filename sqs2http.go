@@ -183,6 +183,12 @@ func main() {
 					continue
 				}
 
+				err = res.Body.Close()
+
+				if err != nil {
+					fail("failed to close http response body", err)
+				}
+
 				sc := res.StatusCode
 
 				debug("received http status code", sc)
