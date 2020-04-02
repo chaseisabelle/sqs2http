@@ -101,13 +101,12 @@ func main() {
 
 	// init http client to connect to the web server
 	cli := http.Client{}
-	tmp := *workers
 
 	// listen for kill/term/stop signals from user/os
 	stop.Listen()
 
 	// create the workers
-	for tmp > 0 {
+	for i := 0; i < *workers; i++ {
 		// spawn a goroutine for each worker
 		go func() {
 			empties := uint64(0) //<< keeps track of number of subsequent empty replies from queue
@@ -211,11 +210,9 @@ func main() {
 			// if we have broken out of the forever loop then we need to exit gracefully
 			listener <- struct{}{}
 		}()
-
-		tmp--
 	}
 
-	tmp = 0
+	tmp := 0
 
 	// listen for workers to exit gracefully
 	for range listener {
