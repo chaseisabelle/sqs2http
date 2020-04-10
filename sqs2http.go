@@ -10,16 +10,30 @@ import (
 	"github.com/chaseisabelle/sqsc"
 	"github.com/chaseisabelle/stop"
 	"github.com/g3n/engine/util/logger"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
+	"strconv"
+	"time"
 )
 
-// listening for workers to shutdown
-var listener chan struct{}
-
-// func is called before main()
-func init() {
-	listener = make(chan struct{})
-}
+var (
+	httpHisto = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "sqs2http_http_latency_seconds",
+			Help: "http request latency",
+		},
+		[]string{"status", "context"},
+	)
+	sqsHisto = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "sqs2http_sqs_latency_seconds",
+			Help: "sqs request latency",
+		},
+		[]string{"status", "context"},
+	)
+)
 
 // main process
 func main() {
@@ -40,6 +54,8 @@ func main() {
 	verbose := flag.Bool("verbose", false, "verbose output")
 	boAfter := flag.Int("backoff-after", 1, "backoff after this many empty responses (0 for no backoff)")
 	boMax := flag.Int("backoff-max", 10, "max sleep time for the exponential backoff")
+	metrics := flag.Bool("metrics", false, "enable/disable metrics")
+	host := flag.String("host", "127.0.0.1:8088", "the http host for the metrics endpoint")
 
 	var flags flagz.Flagz
 
@@ -49,6 +65,8 @@ func main() {
 
 	if *verbose {
 		logger.SetLevel(logger.DEBUG)
+	} else {
+		logger.SetLevel(logger.INFO)
 	}
 
 	var err error
@@ -99,19 +117,34 @@ func main() {
 		die("failed to init sqs client", err)
 	}
 
+	// init metrics server if enabled
+	if *metrics {
+		http.Handle("/metrics", promhttp.Handler())
+
+		go func() {
+			err = http.ListenAndServe(*host, nil)
+
+			if err != nil {
+				die("failed to start server", err)
+			}
+		}()
+	}
+
 	// init http client to connect to the web server
 	cli := http.Client{}
-	tmp := *workers
 
 	// listen for kill/term/stop signals from user/os
 	stop.Listen()
 
+	// listen for workers to gracefully exit
+	ear := make(chan struct{})
+
 	// create the workers
-	for tmp > 0 {
+	for i := 0; i < *workers; i++ {
 		// spawn a goroutine for each worker
 		go func() {
-			empties := uint64(0) //<< keeps track of number of subsequent empty replies from queue
-			bo, err := expbo.New(uint64(1000), uint64(*boMax) * 1000, 2) //<< exponential backoff
+			empties := uint64(0)                                       //<< keeps track of number of subsequent empty replies from queue
+			bo, err := expbo.New(uint64(1000), uint64(*boMax)*1000, 2) //<< exponential backoff
 
 			if err != nil {
 				die("failed to init backoff", err)
@@ -127,16 +160,26 @@ func main() {
 				}
 
 				// attempt to consume a message from the queue
+				start := time.Now()
 				bod, rh, err := sqs.Consume()
+				dur := time.Since(start).Seconds()
 
 				if err != nil {
 					fail("consumer failure", err)
+
+					if *metrics {
+						sqsHisto.WithLabelValues("failure", "consume").Observe(dur)
+					}
 
 					continue
 				}
 
 				// if theres no body and no receipt handle then the queue is empty
 				if bod == "" && rh == "" {
+					if *metrics {
+						sqsHisto.WithLabelValues("empty", "consume").Observe(dur)
+					}
+
 					empties++ //<< track number of empty replies
 
 					// back off if necessary
@@ -148,6 +191,10 @@ func main() {
 
 					// skip to next iteration
 					continue
+				}
+
+				if *metrics {
+					sqsHisto.WithLabelValues("success", "consume").Observe(dur)
 				}
 
 				// reset number of empty replies
@@ -164,6 +211,10 @@ func main() {
 				if err != nil {
 					fail("http request failure", err)
 
+					if *metrics {
+						httpHisto.WithLabelValues("failure", "request").Observe(dur)
+					}
+
 					continue
 				}
 
@@ -173,12 +224,20 @@ func main() {
 				if err != nil {
 					fail("http query failure", err)
 
+					if *metrics {
+						httpHisto.WithLabelValues("failure", "query").Observe(dur)
+					}
+
 					continue
 				}
 
 				// check the http response
 				if res == nil {
 					fail("http response failure", errors.New("received nil response"))
+
+					if *metrics {
+						httpHisto.WithLabelValues("failure", "response").Observe(dur)
+					}
 
 					continue
 				}
@@ -197,33 +256,45 @@ func main() {
 				if has(sc, statuses) {
 					info("requeue due to http response code", sc)
 
+					if *metrics {
+						httpHisto.WithLabelValues(strconv.Itoa(sc), "requeue").Observe(dur)
+					}
+
 					continue
 				}
 
+				if *metrics {
+					httpHisto.WithLabelValues(strconv.Itoa(sc), "query").Observe(dur)
+				}
+
 				// elsewise delete the message from the queue
+				start = time.Now()
 				_, err = sqs.Delete(rh)
+				dur = time.Since(start).Seconds()
 
 				if err != nil {
 					fail("sqs delete failure", err)
+
+					if *metrics {
+						sqsHisto.WithLabelValues("failure", "delete").Observe(dur)
+					}
+
+					continue
+				}
+
+				if *metrics {
+					sqsHisto.WithLabelValues("success", "delete").Observe(dur)
 				}
 			}
 
 			// if we have broken out of the forever loop then we need to exit gracefully
-			listener <- struct{}{}
+			ear <- struct{}{}
 		}()
-
-		tmp--
 	}
 
-	tmp = 0
-
 	// listen for workers to exit gracefully
-	for range listener {
-		tmp++
-
-		if tmp >= *workers {
-			break
-		}
+	for i := 0; i < *workers; i++ {
+		<-ear
 	}
 
 	info("graceful exit", "bye bye")
