@@ -55,7 +55,7 @@ func main() {
 	boAfter := flag.Int("backoff-after", 1, "backoff after this many empty responses (0 for no backoff)")
 	boMax := flag.Int("backoff-max", 10, "max sleep time for the exponential backoff")
 	metrics := flag.Bool("metrics", false, "enable/disable metrics")
-	host := flag.String("host", "127.0.0.1:8088", "the http host for the metrics endpoint")
+	host := flag.String("host", "127.0.0.1:80", "the http host for the metrics endpoint")
 
 	var flags flagz.Flagz
 
