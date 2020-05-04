@@ -103,6 +103,7 @@ func main() {
 	for tmp > 0 {
 		// spawn a goroutine for each worker
 		go func() {
+			defer wg.Done()
 			empties := uint64(0)                                       //<< keeps track of number of subsequent empty replies from queue
 			bo, err := expbo.New(uint64(1000), uint64(*boMax)*1000, 2) //<< exponential backoff
 			if err != nil {
@@ -186,9 +187,6 @@ func main() {
 					fail("sqs delete failure", err)
 				}
 			}
-
-			// if we have broken out of the forever loop then we need to exit gracefully
-			wg.Done()
 		}()
 
 		tmp--
