@@ -15,14 +15,6 @@ import (
 	"github.com/g3n/engine/util/logger"
 )
 
-// listening for workers to shutdown
-var listener chan struct{}
-
-// func is called before main()
-func init() {
-	listener = make(chan struct{})
-}
-
 // main process
 func main() {
 	// init the configs for everything
