@@ -5,12 +5,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/http"
+	"sync"
+
 	"github.com/chaseisabelle/backoff/expbo"
 	"github.com/chaseisabelle/flagz"
 	"github.com/chaseisabelle/sqsc"
 	"github.com/chaseisabelle/stop"
 	"github.com/g3n/engine/util/logger"
-	"net/http"
 )
 
 // listening for workers to shutdown
@@ -42,9 +44,7 @@ func main() {
 	boMax := flag.Int("backoff-max", 10, "max sleep time for the exponential backoff")
 
 	var flags flagz.Flagz
-
 	flag.Var(&flags, "requeue", "the http status code timeout requeue a message for")
-
 	flag.Parse()
 
 	if *verbose {
@@ -77,7 +77,6 @@ func main() {
 
 	if *workers < 1 {
 		err := errors.New("need at least 1 worker")
-
 		die("failed to init workers", err)
 	}
 
@@ -106,13 +105,14 @@ func main() {
 	// listen for kill/term/stop signals from user/os
 	stop.Listen()
 
+	var wg sync.WaitGroup
+
 	// create the workers
 	for tmp > 0 {
 		// spawn a goroutine for each worker
 		go func() {
-			empties := uint64(0) //<< keeps track of number of subsequent empty replies from queue
-			bo, err := expbo.New(uint64(1000), uint64(*boMax) * 1000, 2) //<< exponential backoff
-
+			empties := uint64(0)                                       //<< keeps track of number of subsequent empty replies from queue
+			bo, err := expbo.New(uint64(1000), uint64(*boMax)*1000, 2) //<< exponential backoff
 			if err != nil {
 				die("failed to init backoff", err)
 			}
@@ -122,16 +122,13 @@ func main() {
 				// check if user/os has stopped the program and exit gracefully
 				if stop.Stopped() {
 					debug("graceful exit", "worker")
-
 					break
 				}
 
 				// attempt to consume a message from the queue
 				bod, rh, err := sqs.Consume()
-
 				if err != nil {
 					fail("consumer failure", err)
-
 					continue
 				}
 
@@ -142,7 +139,6 @@ func main() {
 					// back off if necessary
 					if *boAfter != 0 && empties >= uint64(*boAfter) {
 						debug("sleeping", bo)
-
 						bo.Backoff()
 					}
 
@@ -160,72 +156,54 @@ func main() {
 
 				// create new http request
 				req, err := http.NewRequest(*method, *to, bytes.NewBuffer([]byte(bod)))
-
 				if err != nil {
 					fail("http request failure", err)
-
 					continue
 				}
 
 				// execute http request
 				res, err := cli.Do(req)
-
 				if err != nil {
 					fail("http query failure", err)
-
 					continue
 				}
 
 				// check the http response
 				if res == nil {
 					fail("http response failure", errors.New("received nil response"))
-
 					continue
 				}
 
 				err = res.Body.Close()
-
 				if err != nil {
 					fail("failed to close http response body", err)
 				}
 
 				sc := res.StatusCode
-
 				debug("received http status code", sc)
 
 				// if the http code is in the requeue codes the requeue the message
 				if has(sc, statuses) {
 					info("requeue due to http response code", sc)
-
 					continue
 				}
 
 				// elsewise delete the message from the queue
 				_, err = sqs.Delete(rh)
-
 				if err != nil {
 					fail("sqs delete failure", err)
 				}
 			}
 
 			// if we have broken out of the forever loop then we need to exit gracefully
-			listener <- struct{}{}
+			wg.Done()
 		}()
 
 		tmp--
 	}
 
-	tmp = 0
-
-	// listen for workers to exit gracefully
-	for range listener {
-		tmp++
-
-		if tmp >= *workers {
-			break
-		}
-	}
-
+	// wait for the workers to finish
+	wg.Wait()
 	info("graceful exit", "bye bye")
 }
 
@@ -251,6 +229,5 @@ func has(num int, arr []int) bool {
 			return true
 		}
 	}
-
 	return false
 }
