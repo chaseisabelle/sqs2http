@@ -93,18 +93,19 @@ func main() {
 	// init http client to connect to the web server
 	cli := http.Client{}
 	tmp := *workers
+	wg := &sync.WaitGroup{}
 
 	// listen for kill/term/stop signals from user/os
 	stop.Listen()
 
-	var wg sync.WaitGroup
-
 	// create the workers
 	for tmp > 0 {
+		wg.Add(1)
+
 		// spawn a goroutine for each worker
 		go func() {
-			wg.Add(1)
 			defer wg.Done()
+
 			empties := uint64(0)                                       //<< keeps track of number of subsequent empty replies from queue
 			bo, err := expbo.New(uint64(1000), uint64(*boMax)*1000, 2) //<< exponential backoff
 			if err != nil {
