@@ -2,6 +2,11 @@
 forward messages from sqs to http endpoints
 
 ---
+## docker images
+
+get the latest from [docker](https://hub.docker.com/repository/docker/chaseisabelle/sqs2http/)
+
+---
 ## usage
 
 ```
